@@ -9,8 +9,8 @@ from tqdm.auto import tqdm
 
 from raglite._config import RAGLiteConfig
 from raglite._database import Chunk, ChunkEmbedding, Document, IndexMetadata, create_database_engine
-from raglite._embed import embed_sentences, sentence_embedding_type
-from raglite._markdown import document_to_markdown
+from raglite._embed import embed_sentences
+from raglite._html import document_to_html
 from raglite._split_chunks import split_chunks
 from raglite._split_sentences import split_sentences
 from raglite._typing import DocumentId, FloatMatrix
@@ -33,35 +33,24 @@ def _create_chunk_records(
         headings = record.extract_headings()
     # Create the chunk embedding records.
     chunk_embedding_records = []
-    if sentence_embedding_type(config=config) == "late_chunking":
-        # Every chunk record is associated with a list of chunk embedding records, one for each of
-        # the sentences in the chunk.
-        for chunk_record, chunk_embedding in zip(chunk_records, chunk_embeddings, strict=True):
-            chunk_embedding_records.append(
-                [
-                    ChunkEmbedding(chunk_id=chunk_record.id, embedding=sentence_embedding)
-                    for sentence_embedding in chunk_embedding
-                ]
-            )
-    else:
-        # Embed the full chunks, including the current Markdown headings.
-        full_chunk_embeddings = embed_sentences([str(chunk) for chunk in chunks], config=config)
-        # Every chunk record is associated with a list of chunk embedding records. The chunk
-        # embedding records each correspond to a linear combination of a sentence embedding and an
-        # embedding of the full chunk with Markdown headings.
-        α = 0.382  # Golden ratio.  # noqa: PLC2401
-        for chunk_record, chunk_embedding, full_chunk_embedding in zip(
-            chunk_records, chunk_embeddings, full_chunk_embeddings, strict=True
-        ):
-            chunk_embedding_records.append(
-                [
-                    ChunkEmbedding(
-                        chunk_id=chunk_record.id,
-                        embedding=α * sentence_embedding + (1 - α) * full_chunk_embedding,
-                    )
-                    for sentence_embedding in chunk_embedding
-                ]
-            )
+    # Embed the full chunks, including the current Markdown headings.
+    full_chunk_embeddings = embed_sentences([str(chunk) for chunk in chunks], config=config)
+    # Every chunk record is associated with a list of chunk embedding records. The chunk
+    # embedding records each correspond to a linear combination of a sentence embedding and an
+    # embedding of the full chunk with Markdown headings.
+    α = 0.382  # Golden ratio.  # noqa: PLC2401
+    for chunk_record, chunk_embedding, full_chunk_embedding in zip(
+        chunk_records, chunk_embeddings, full_chunk_embeddings, strict=True
+    ):
+        chunk_embedding_records.append(
+            [
+                ChunkEmbedding(
+                    chunk_id=chunk_record.id,
+                    embedding=α * sentence_embedding + (1 - α) * full_chunk_embedding,
+                )
+                for sentence_embedding in chunk_embedding
+            ]
+        )
     return chunk_records, chunk_embedding_records
 
 
@@ -76,7 +65,7 @@ def insert_document(doc_path: Path, *, config: RAGLiteConfig | None = None) -> N
         engine = create_database_engine(config)
         pbar.update(1)
         pbar.set_description("Converting to Markdown")
-        doc = document_to_markdown(doc_path)
+        doc = document_to_html(doc_path)
         pbar.update(1)
         pbar.set_description("Splitting sentences")
         sentences = split_sentences(doc, max_len=config.chunk_max_size)

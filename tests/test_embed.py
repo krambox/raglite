@@ -6,15 +6,15 @@ import numpy as np
 
 from raglite import RAGLiteConfig
 from raglite._embed import embed_sentences
-from raglite._markdown import document_to_markdown
+from raglite._html import document_to_html
 from raglite._split_sentences import split_sentences
 
 
 def test_embed(embedder: str) -> None:
     """Test embedding a document."""
     raglite_test_config = RAGLiteConfig(embedder=embedder, embedder_normalize=True)
-    doc_path = Path(__file__).parent / "specrel.pdf"  # Einstein's special relativity paper.
-    doc = document_to_markdown(doc_path)
+    doc_path = Path(__file__).parent / "2023_12_11_Duesseldorfer_Tabelle_-2024.pdf" 
+    doc = document_to_html(doc_path)
     sentences = split_sentences(doc, max_len=raglite_test_config.chunk_max_size)
     sentence_embeddings = embed_sentences(sentences, config=raglite_test_config)
     assert isinstance(sentences, list)

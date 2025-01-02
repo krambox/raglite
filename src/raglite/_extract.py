@@ -39,7 +39,7 @@ def extract_with_llm(
     )
     # Update the system prompt with the JSON schema of the return type to help the LLM.
     system_prompt = getattr(return_type, "system_prompt", "").strip()
-    if not llm_supports_response_format or config.llm.startswith("llama-cpp-python"):
+    if not llm_supports_response_format:
         system_prompt += f"\n\nFormat your response according to this JSON schema:\n{return_type.model_json_schema()!s}"
     # Constrain the response format to the JSON schema if it's supported by the LLM [1]. Strict mode
     # is disabled by default because it only supports a subset of JSON schema features [2].

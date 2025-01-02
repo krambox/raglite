@@ -98,19 +98,6 @@ def _get_tools(
     if not messages_contain_rag_context and not llm_supports_function_calling:
         error_message = "You must either explicitly provide RAG context in the last message, or use an LLM that supports function calling."
         raise ValueError(error_message)
-    # Add a tool to search the knowledge base if no RAG context is provided in the messages. Because
-    # llama-cpp-python cannot stream tool_use='auto' yet, we use a workaround that forces the LLM
-    # to use a tool, but allows it to skip the search.
-    auto_tool_use_workaround = (
-        {
-            "expert": {
-                "type": "boolean",
-                "description": "The `expert` boolean MUST be true if the question requires domain-specific or expert-level knowledge to answer, and false otherwise.",
-            }
-        }
-        if config.llm.startswith("llama-cpp-python")
-        else {}
-    )
     tools: list[dict[str, Any]] | None = (
         [
             {
@@ -121,7 +108,6 @@ def _get_tools(
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            **auto_tool_use_workaround,
                             "query": {
                                 "type": "string",
                                 "description": (
@@ -200,14 +186,6 @@ def rag(
     # Stream the LLM response, which is either a tool call request or an assistant response.
     chunks = []
     clipped_messages = _clip(messages, max_tokens)
-    if tools and config.llm.startswith("llama-cpp-python"):
-        # Help llama.cpp LLMs plan their response by providing a JSON schema for the tool call.
-        clipped_messages[-1]["content"] += (
-            "\n\n<tools>\n"
-            f"Available tools:\n```\n{json.dumps(tools)}\n```\n"
-            "IMPORTANT: The `expert` boolean MUST be true if the question requires domain-specific or expert-level knowledge to answer, and false otherwise.\n"
-            "</tools>"
-        )
     stream = completion(
         model=config.llm,
         messages=clipped_messages,
@@ -251,14 +229,6 @@ async def async_rag(
     # Asynchronously stream the LLM response, which is either a tool call or an assistant response.
     chunks = []
     clipped_messages = _clip(messages, max_tokens)
-    if tools and config.llm.startswith("llama-cpp-python"):
-        # Help llama.cpp LLMs plan their response by providing a JSON schema for the tool call.
-        clipped_messages[-1]["content"] += (
-            "\n\n<tools>\n"
-            f"Available tools:\n```\n{json.dumps(tools)}\n```\n"
-            "IMPORTANT: The `expert` boolean MUST be true if the question requires domain-specific or expert-level knowledge to answer, and false otherwise.\n"
-            "</tools>"
-        )
     async_stream = await acompletion(
         model=config.llm,
         messages=clipped_messages,

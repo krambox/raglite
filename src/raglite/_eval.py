@@ -224,7 +224,6 @@ def evaluate(
 
         from raglite._config import RAGLiteConfig
         from raglite._embed import embed_sentences
-        from raglite._litellm import LlamaCppPythonLLM
     except ImportError as import_error:
         error_message = "To use the `evaluate` function, please install the `ragas` extra."
         raise ImportError(error_message) from import_error
@@ -252,18 +251,7 @@ def evaluate(
         if isinstance(answered_evals, pd.DataFrame)
         else answer_evals(num_evals=answered_evals, config=config)
     )
-    # Load the LLM.
-    if config.llm.startswith("llama-cpp-python"):
-        llm = LlamaCppPythonLLM().llm(model=config.llm)
-        lc_llm = LlamaCpp(
-            model_path=llm.model_path,
-            n_batch=llm.n_batch,
-            n_ctx=llm.n_ctx(),
-            n_gpu_layers=-1,
-            verbose=llm.verbose,
-        )
-    else:
-        lc_llm = ChatLiteLLM(model=config.llm)  # type: ignore[call-arg]
+    lc_llm = ChatLiteLLM(model=config.llm)  # type: ignore[call-arg]
     embedder = RAGLiteRagasEmbeddings(config=config)
     # Evaluate the answered evals with Ragas.
     evaluation_df = ragas_evaluate(

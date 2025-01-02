@@ -7,7 +7,6 @@ from io import StringIO
 from pathlib import Path
 from typing import Literal
 
-from llama_cpp import llama_supports_gpu_offload
 from platformdirs import user_data_dir
 from sqlalchemy.engine import URL
 
@@ -29,20 +28,12 @@ class RAGLiteConfig:
     db_url: str | URL = f"sqlite:///{(cache_path / 'raglite.db').as_posix()}"
     # LLM config used for generation.
     llm: str = field(
-        default_factory=lambda: (
-            "llama-cpp-python/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF/*Q4_K_M.gguf@8192"
-            if llama_supports_gpu_offload()
-            else "llama-cpp-python/bartowski/Llama-3.2-3B-Instruct-GGUF/*Q4_K_M.gguf@4096"
-        )
+        default_factory=lambda: ("gpt-4o-mini" )
     )
     llm_max_tries: int = 4
     # Embedder config used for indexing.
     embedder: str = field(
-        default_factory=lambda: (  # Nomic-embed may be better if only English is used.
-            "llama-cpp-python/lm-kit/bge-m3-gguf/*F16.gguf@1024"
-            if llama_supports_gpu_offload() or (os.cpu_count() or 1) >= 4  # noqa: PLR2004
-            else "llama-cpp-python/lm-kit/bge-m3-gguf/*Q4_K_M.gguf@1024"
-        )
+        default_factory=lambda: (  "ollama/bge-m3")
     )
     embedder_normalize: bool = True
     embedder_sentence_window_size: int = 3
@@ -60,7 +51,3 @@ class RAGLiteConfig:
         compare=False,  # Exclude the reranker from comparison to avoid lru_cache misses.
     )
 
-    def __post_init__(self) -> None:
-        # Late chunking with llama-cpp-python does not apply sentence windowing.
-        if self.embedder.startswith("llama-cpp-python"):
-            object.__setattr__(self, "embedder_sentence_window_size", 1)

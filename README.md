@@ -149,7 +149,7 @@ my_config = RAGLiteConfig(
 > [!TIP]
 > ✍️ To insert documents other than PDF, install the `pandoc` extra with `pip install raglite[pandoc]`.
 
-Next, insert some documents into the database. RAGLite will take care of the [conversion to Markdown](src/raglite/_markdown.py), [optimal level 4 semantic chunking](src/raglite/_split_chunks.py), and [multi-vector embedding with late chunking](src/raglite/_embed.py):
+Next, insert some documents into the database. RAGLite will take care of the [conversion to Html](src/raglite/_html.py), [optimal level 4 semantic chunking](src/raglite/_split_chunks.py), and [multi-vector embedding with late chunking](src/raglite/_embed.py):
 
 ```python
 # Insert documents:

@@ -7,7 +7,7 @@ import chainlit as cl
 from chainlit.input_widget import Switch, TextInput
 
 from raglite import RAGLiteConfig, async_rag, hybrid_search, insert_document, rerank_chunks
-from raglite._markdown import document_to_markdown
+from raglite._html import document_to_html
 
 async_insert_document = cl.make_async(insert_document)
 async_hybrid_search = cl.make_async(hybrid_search)
@@ -50,7 +50,7 @@ async def update_config(settings: cl.ChatSettings) -> None:
     cl.user_session.set("config", config)  # type: ignore[no-untyped-call]
     # Run a search to prime the pipeline if it's a local pipeline.
     # TODO: Don't do this for SQLite once we switch from PyNNDescent to sqlite-vec.
-    if str(config.db_url).startswith("sqlite") or config.embedder.startswith("llama-cpp-python"):
+    if str(config.db_url).startswith("sqlite"):
         # async with cl.Step(name="initialize", type="retrieval"):
         query = "Hello world"
         chunk_ids, _ = await async_hybrid_search(query=query, config=config)
@@ -66,7 +66,7 @@ async def handle_message(user_message: cl.Message) -> None:
     inline_attachments = []
     for file in user_message.elements:
         if file.path:
-            doc_md = document_to_markdown(Path(file.path))
+            doc_md = document_to_html(Path(file.path))
             if len(doc_md) // 3 <= 5 * (config.chunk_max_size // 3):
                 # Document is small enough to attach to the context.
                 inline_attachments.append(f"{Path(file.path).name}:\n\n{doc_md}")

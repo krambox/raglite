@@ -2,79 +2,28 @@
 
 import re
 
-import spacy
-from markdown_it import MarkdownIt
-from spacy.language import Language
+from somajo import SoMaJo
+import markdownify
 
-
-@Language.component("_mark_additional_sentence_boundaries")
-def _mark_additional_sentence_boundaries(doc: spacy.tokens.Doc) -> spacy.tokens.Doc:
-    """Mark additional sentence boundaries in Markdown documents."""
-
-    def get_markdown_heading_indexes(doc: str) -> list[tuple[int, int]]:
-        """Get the indexes of the headings in a Markdown document."""
-        md = MarkdownIt()
-        tokens = md.parse(doc)
-        headings = []
-        lines = doc.splitlines(keepends=True)
-        char_idx = [0]
-        for line in lines:
-            char_idx.append(char_idx[-1] + len(line))
-        for token in tokens:
-            if token.type == "heading_open":
-                start_line, end_line = token.map  # type: ignore[misc]
-                heading_start = char_idx[start_line]
-                heading_end = char_idx[end_line]
-                headings.append((heading_start, heading_end + 1))
-        return headings
-
-    headings = get_markdown_heading_indexes(doc.text)
-    for heading_start, heading_end in headings:
-        # Extract this heading's tokens.
-        heading_tokens = []
-        for token in doc:
-            if heading_start <= token.idx < heading_end:
-                heading_tokens.append(token)  # Include the tokens strictly part of the heading.
-            elif heading_tokens:
-                heading_tokens.append(token)  # Include the first token after the heading.
-                break
-        # Mark the start of the heading as a new sentence, the heading body as not containing
-        # sentence boundaries, and the first token after the heading as a new sentence.
-        heading_tokens[0].is_sent_start = True
-        heading_tokens[-1].is_sent_start = True
-        for token in heading_tokens[1:-1]:
-            token.is_sent_start = False
-    return doc
-
+eos_tags = "title h1 h2 h3 h4 h5 h6 br hr dl table tr".split()
+no_space_before = re.compile(r" ([,.!:;)\]])")
+placeholder_section_delim = "▷"
 
 def split_sentences(doc: str, max_len: int | None = None) -> list[str]:
-    """Split a document into sentences."""
-    # Split sentences with spaCy.
-    try:
-        nlp = spacy.load("xx_sent_ud_sm")
-    except OSError as error:
-        error_message = "Please install `xx_sent_ud_sm` with `pip install https://github.com/explosion/spacy-models/releases/download/xx_sent_ud_sm-3.7.0/xx_sent_ud_sm-3.7.0-py3-none-any.whl`."
-        raise ImportError(error_message) from error
-    nlp.add_pipe("_mark_additional_sentence_boundaries", before="senter")
-    sentences = [sent.text_with_ws for sent in nlp(doc).sents if sent.text.strip()]
-    # Apply additional splits on paragraphs and sentences because spaCy's splitting is not perfect.
-    if max_len is not None:
-        for pattern in (r"(?<=\n\n)", r"(?<=\.\s)"):
-            sentences = [
-                part
-                for sent in sentences
-                for part in ([sent] if len(sent) <= max_len else re.split(pattern, sent))
-            ]
-    # Recursively split long sentences in the middle if they are still too long.
-    if max_len is not None:
-        while any(len(sentence) > max_len for sentence in sentences):
-            sentences = [
-                part
-                for sent in sentences
-                for part in (
-                    [sent]
-                    if len(sent) <= max_len
-                    else [sent[: len(sent) // 2], sent[len(sent) // 2 :]]
-                )
-            ]
-    return sentences
+
+    cleaned_sentences = []
+    sentences = SoMaJo("de_CMC").tokenize_xml(
+        doc, eos_tags, strip_tags=False, prune_tags=None
+    )
+    for sentence in sentences:
+        parts = []
+        for t in sentence:
+            parts.append(t.text)
+            if t.space_after:
+                parts.append(" ")
+        s = "".join(parts)
+        s = re.sub(no_space_before, r"\1", s)
+        cleaned_sentences.append(s)
+    splitted_html=f"{placeholder_section_delim}".join(cleaned_sentences)
+    md=markdownify.markdownify(splitted_html,heading_style="ATX")
+    return md.split(placeholder_section_delim)

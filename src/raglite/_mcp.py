@@ -44,7 +44,7 @@ def create_mcp_server(server_name: str, *, config: RAGLiteConfig) -> FastMCP:
         return rag_context
 
     # Warm up the querying pipeline.
-    if str(config.db_url).startswith("sqlite") or config.embedder.startswith("llama-cpp-python"):
+    if str(config.db_url).startswith("sqlite"):
         _ = retrieve_rag_context("Hello world", config=config)
 
     return mcp

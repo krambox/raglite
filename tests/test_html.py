@@ -2,21 +2,15 @@
 
 from pathlib import Path
 
-from raglite._markdown import document_to_markdown
+from raglite._html import document_to_html
 
 
 def test_pdf_with_missing_font_sizes() -> None:
     """Test conversion of a PDF with missing font sizes."""
     # Convert a PDF whose parsed font sizes are all equal to 1.
-    doc_path = Path(__file__).parent / "specrel.pdf"  # Einstein's special relativity paper.
-    doc = document_to_markdown(doc_path)
+    doc_path = Path(__file__).parent / "2023_12_11_Duesseldorfer_Tabelle_-2024.pdf"
+    doc = document_to_html(doc_path)
     # Verify that we can reconstruct the font sizes and heading levels regardless of the missing
     # font size data.
-    expected_heading = """
-# ON THE ELECTRODYNAMICS OF MOVING BODIES
-
-## By A. EINSTEIN  June 30, 1905
-
-It is known that Maxwell
-    """.strip()
+    expected_heading = '<html lang="en">\n\n<h2>DÜSSELDORFER TABELLE 1</h2>\n<h2>A. Kindesunterhalt</h2>'
     assert doc.startswith(expected_heading)
